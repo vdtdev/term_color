@@ -108,9 +108,6 @@ module TermColor
             @regexs[:default] = Regexp.compile(
                 "(?<default>(#{RESET_SYMBOL}))"
             )
-            @regexs[:close_rule] = Regexp.compile(
-                "(?<close_rule>(#{CLOSE_SYMBOL}))"
-            )
         end
 
         def locate_rules_in_string(text)

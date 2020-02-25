@@ -74,7 +74,7 @@ rules = TermColor.create_rule_set({
 __Use__
 
 ```
-print rules.colorize("title%How to %propSucceed%%%% by %nameJohn%%\n")
+print rules.colorize("%titleHow to %propSucceed%%%% by %nameJohn%%\n")
 ```
 
 __Result__
@@ -86,4 +86,4 @@ __Result__
 
 ## License
 
-(c) 2020, Wade H. (vdtdev.prod@gmail.com). All Rights Reservd. Released under MIT license.
+(c) 2020, Wade H. (vdtdev.prod@gmail.com). All Rights Reserved. Released under MIT license.
