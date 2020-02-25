@@ -49,6 +49,18 @@ module TermColor
         ColorModes = { fg: 30, bg: 40 }
 
         ##
+        # Advanced color value options. Can be used as key name in hash value
+        # passed to fg or bg to use advanced color modes
+        ColorsAdvanced = {
+            # ANSI 256 color mode (expects value to be integer color)
+            # Use like: `{c256: 308}`
+            c256: :color_256,
+            # ANSI 16m color mode (expects value to be array of integers [r,g,b])
+            # Use like: `{c16m: [25,30,25]}`
+            c16m: :color_16m
+        }
+
+        ##
         # Style option constants
         Styles = {
             bold: 1,
@@ -188,6 +200,9 @@ module TermColor
 
         def resolve_color(color, mode = :fg)
             if !color.is_a?(Integer)
+                if color.is_a?(Hash) && ColorsAdvanced.keys.include?(color.keys[0])
+                    return self.method(ColorsAdvanced[color.keys[0]]).call(color.values[0])
+                end
                 color = Colors[color.to_sym].to_i
             end
             (color + ColorModes[mode.to_sym].to_i)
@@ -208,6 +223,15 @@ module TermColor
             else
                 return nil
             end
+        end
+
+        def color_256(val)
+            "38;5;#{val}"
+        end
+
+        def color_16m(val)
+            c = val.join(';')
+            "38;2;#{c}"
         end
 
     end

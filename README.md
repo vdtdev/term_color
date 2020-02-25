@@ -11,8 +11,6 @@ Rule-based text coloring/styling library for terminal text
 - Streamline including multiple styles within a single string, including allowing nested rules
 
 ### TODO
-
-- Support for RGB/Hex Codes
 - Publish as gem
 
 ### Requirements
@@ -40,8 +38,12 @@ Each rule can either:
 
 #### Rule Properties
 
-- `fg` - Foreground color. Value can be a {TermColor::Rule::Colors} or an Integer
+- `fg` - Foreground color. Value can be a {TermColor::Rule::Colors} or an Integer or:
+    - `{c256: Integer}` for ANSI 256 color
+    - `{c16m: [red,green,blue]}` for ANSI 16m color
 - `bg` - Background color. Value can be a {TermColor::Rule::Colors} or an Integer
+    - `{c256: Integer}` for ANSI 256 color
+    - `{c16m: [red,green,blue]}` for ANSI 16m color
 - `enable` - Enable one or more styling options (({TermColor::Rule::Styles}))
 - `disable` - Disable one or more styling options (({TermColor::Rule::Styles}))
 - `reset` - Reset one or more properties. Can be `fg`, `bg` or `all` to reset everything
