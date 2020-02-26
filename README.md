@@ -53,6 +53,8 @@ __Use__
 
 ### Rule Definitions
 
+_For more details on rule definitions, see {file:docs/rule_dsl.md Rule DSL} ([View on GitHub](https://github.com/vdtdev/term_color/blob/master/docs/rule_dsl.md))_
+
 Rule definitions are just hashes that include rule options. The included options can be divided into `:inside` (applied to text rule is applied to) and `:after` (applied to text following text rule is applied to). If neither of these sub hashes are included, all options are treated as being for `:inside`, and an `:after` set is auto-generated to unapply style changes made inside rule for following text. To prevent an `:after` section from being automatically generated, either include your own `:after` section or include `after: {}`. 
 
 ```ruby
@@ -68,9 +70,11 @@ rule = { fg: :red, after: {} }
 rule = { inside: { fg: :red }, after: { reset: :fg } }
 ```
 
-For more details on rule definitions, see {file:docs/rule_dsl.md Rule DSL}
+For more details on rule definitions, see {file:docs/rule_dsl.md Rule DSL} ([View on GitHub]{https://github.com/vdtdev/term_color/blob/master/docs/rule_dsl.md})
 
 ## Examples
+
+[If example images are missing, view readme on github](https://github.com/vdtdev/term_color/blob/master/README.md)
 
 ### Basic
 
@@ -83,7 +87,6 @@ rule_set = TermColor.create_rule_set({
 rule_set.printf "%errInvalid%% option: %opt%s%%\n", "fruit"
 ```
 
-{file:docs/example_1.png}
 ![](./file/docs/example_1.png)
 ![](./docs/example_1.png)
 
@@ -98,6 +101,9 @@ rule_set = TermColor.create_rule_set({
 
 rule_set.print "book: %%titleHarry Potter (%emph%%)%% by %authorJ. K. Rowling%%\n"
 ```
+
+![](./file/docs/example_2.png)
+![](./docs/example_2.png)
 
 ## License
 
