@@ -2,6 +2,7 @@
 'lib/**/*.rb'
 --protected
 --markup markdown
+--asset ./docs
 -
 README
 ./docs/rule_dsl.md

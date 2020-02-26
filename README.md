@@ -83,8 +83,9 @@ rule_set = TermColor.create_rule_set({
 rule_set.printf "%errInvalid%% option: %opt%s%%\n", "fruit"
 ```
 
-<img src={file:docs/examples/example_1.png}>
-<img src="./docs/examples/example_1.png">
+{file:docs/example_1.png}
+![](./file/docs/example_1.png)
+![](./docs/example_1.png)
 
 ### Nested /w XTerm RGB
 

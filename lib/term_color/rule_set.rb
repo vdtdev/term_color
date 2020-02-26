@@ -92,7 +92,7 @@ module TermColor
         # Wraps STDOUT print method, passing output of `apply` to `print`
         # @param [Array] args Print arguments, including TermColor style tags
         # @param [Hash] opts Optional params
-        # @opt opts [IO] :out Optional override for IO class to call `print`
+        # @option opts [IO] :out Optional override for IO class to call `print`
         #   on (default `$stdout`)
         def print(*args,**opts)
             stdout = opts.fetch(:out, $stdout)
@@ -108,7 +108,7 @@ module TermColor
         #   including TermColor style tags
         # @param [Array] args printf values to use with format string
         # @param [Hash] opts Optional params
-        # @opt opts [IO] :out Optional override for IO class to call `print`
+        # @option opts [IO] :out Optional override for IO class to call `print`
         #   on (default `$stdout`)
         def printf(format_string,*args,**opts)
             stdout = opts.fetch(:out, $stdout)
