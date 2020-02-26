@@ -2,6 +2,8 @@
 
 Rule-based text coloring/styling library for terminal text
 
+[![Gem Version](https://badge.fury.io/rb/term_color.svg)](https://badge.fury.io/rb/term_color)
+
 ## Overview
 
 ### Justifying Features

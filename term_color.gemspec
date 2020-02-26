@@ -1,8 +1,8 @@
-version = '0.0.1'
+version = '0.0.2'
 Gem::Specification.new do |s|
     s.name          = 'term_color'
     s.version       =  version
-    s.date          = '2020-02-25'
+    s.date          = '2020-02-26'
     s.summary       = "Terminal Colors"
     s.description   = <<-eof 
         Rule-based tool for easily applying color and styling to terminal text output.
@@ -18,8 +18,8 @@ Gem::Specification.new do |s|
     s.license       = 'MIT'
     s.homepage      = "https://github.com/vdtdev/term_color"
     s.metadata      = {
-        "source_code_uri" => "https://github.com/vdtdev/term_color"
-        # "documentation_uri" => "https://rubydoc.info/gems/image_filter_dsl/#{version}"
+        "source_code_uri" => "https://github.com/vdtdev/term_color",
+        "documentation_uri" => "https://rubydoc.info/gems/term_color/#{version}"
     }
     s.add_development_dependency 'rspec', '~> 3.7', '>= 3.7.0'
 end
