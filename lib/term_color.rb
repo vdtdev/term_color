@@ -3,7 +3,6 @@ require_relative './term_color/rule_set.rb'
 ##
 # Main TermColor module
 # @author Wade H. <vdtdev.prod@gmail.com>
-# @license MIT
 module TermColor
     extend self
 

@@ -146,6 +146,16 @@ module TermColor
 
         ##
         # Structure used to hold compiled rule
+        # @!attribute [r] original
+        #   Original rule hash
+        #   @return [Hash]
+        # @!attribute [r] evaluated
+        #   Evaluated copy of rule, including generated :after.
+        #   Consists of code arrays
+        #   @return [Hash]
+        # @!attribute [r] rule
+        #   Hash of inside and after ANSI code strings
+        #   @return [Hash]
         Compiled = Struct.new(:original, :evaluated, :rule) do
             ##
             # Get codes for part of compiled rule
