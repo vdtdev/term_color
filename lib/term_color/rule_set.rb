@@ -72,14 +72,14 @@ module TermColor
                     #     str.concat(Rule.codes(@rules[r][:a]))
                     # end
                     if (r == :default) && !last_rule.nil?
-                        str.concat(Rule.codes(@rules[last_rule][:z]))
+                        str.concat(@rules[last_rule].codes(Rule::Parts[:after]))
                         last_rule = nil
                     elsif  r == :default
-                        str.concat(Rule.codes(@rules[r][:z]))
+                        str.concat(@rules[r].codes(Rule::Parts[:after]))
                         last_rule = nil
                     else
                         last_rule = r
-                        str.concat(Rule.codes(@rules[r][:a]))
+                        str.concat(@rules[r].codes(Rule::Parts[:inside]))
                     end
                 else
                     str.concat(r)
@@ -93,7 +93,7 @@ module TermColor
         def evaluate_rules
             @rules = {}
             @base_rules.each_pair do |k,v|
-                @rules[k] = Rule.evaluate(v)
+                @rules[k] = Rule.compile(v)
             end
         end
 

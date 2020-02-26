@@ -25,12 +25,12 @@ module TermColor
     #   # After: color will reset to default, italic will remain on
     #   rule = { a: { fg: :red, enable: :italic }, z: { reset: :fg }}
     # @author Wade H. <vdtdev.prod@gmail.com>
-    # @license MIT
     module Rule
         extend self
 
         ##
-        # Rule color constants
+        # Named Standard ANSI Color constants
+        # (Basic named values for `fg` and `bg` rule option attributes)
         Colors = {
             black: 0,
             red: 1,
@@ -40,46 +40,61 @@ module TermColor
             magenta: 5,
             cyan: 6,
             white: 7
-        }
+        }.freeze
 
-        ##
-        # Color modes (added to color values to target fg/bg)
-        #
-        # Used to determine what props can be used accepting colors
-        ColorModes = { fg: 30, bg: 40 }
-
-        ##
-        # Advanced color value options. Can be used as key name in hash value
-        # passed to fg or bg to use advanced color modes
-        ColorsAdvanced = {
-            # ANSI 256 color mode (expects value to be integer color)
-            # Use like: `{c256: 308}`
-            c256: :color_256,
-            # ANSI 16m color mode (expects value to be array of integers [r,g,b])
-            # Use like: `{c16m: [25,30,25]}`
-            c16m: :color_16m
-        }
+                ##
+        # Numerical modifiers used with Color Values
+        # to target foreground or background.
+        # 
+        # - For {Colors Named Standard Colors}, value is added to given
+        #   color's numerical value
+        # - For XTerm 256/16m color codes, value is added to mode base
+        # 
+        # @example Named Standard Color Background
+        #   { bg: :red } #=> 40 + 1 = 41
+        # @example XTerm 256 Foreground
+        #   { fg: [208] } #=> 8 + 30 = 38
+        ColorTargets = { 
+            fg: 30, # Foreground target
+            bg: 40  # Background target
+        }.freeze
 
         ##
         # Style option constants
+        # (Values that can be included in style `enable` and `disable` 
+        # rule option attributes)
         Styles = {
             bold: 1,
+            ##
+            # Alias for bold
             intense: 1,
+            dim: 2,
+            ##
+            # Alias for dim
             dark: 2,
             italic: 3,
             underline: 4,
             inverse: 7,
             strikethrough: 9
+        }.freeze
+
+        ##
+        # Style action codes
+        # (Numerical modifiers applied to {Styles Style Codes} to
+        # enable/disable them based on which option attribute action
+        # was used)
+        # @example Disable italic
+        #   (:disable) + (:italic) #=> 20 + 3 = 23
+        StyleActions = { 
+            # Enable style(s) action
+            enable: 0,
+            # Disable style(s) action
+            disable: 20 
         }
 
         ##
-        # Styke modes (values added to style values)
-        #
-        # Used to determine what props can accept styles
-        StyleModes = { enable: 0, disable: 20 }
-
-        ##
-        # Options for `reset:`
+        # Reset option constants
+        # (Values for `reset` rule option attribute)
         Resets = {
             # Reset everything
             all: 0,
@@ -87,90 +102,70 @@ module TermColor
             fg: 39,
             # Reset background color only
             bg: 49
-        }
+        }.freeze
 
         ##
         # Descriptive aliases for part names
         Parts = {
             # Style applied on rule open
-            before: :a,
+            inside: :inside,
             # Style appled when rule close is given
-            after: :z
+            after: :after
         }
 
         ##
         # Valid rule operations mapped to accepted const values
         # (colors [fg, bg] can also accept integers)
         Ops = {
-            # Foreground color
+            # Foreground color option
             fg: Colors.keys,
-            # Background color
+            # Background color option
             bg: Colors.keys,
-            # Enable style(s)
+            # Enable style(s) action
             enable: Styles.keys,
-            # Disable style(s)
+            # Disable style(s) action
             disable: Styles.keys,
-            # Resets
-            reset: [:fg, :bg, :style, :all]
+            # Reset action
+            reset: [
+                :fg,    # Reset fg color 
+                :bg,    # Reset bg color
+                :style, # Reset all styles
+                :all    # Reset colors and styles
+            ]
         }
 
         ##
-        # Evaluate rule, returning new hash containing list of numerical
-        # codes to use for before (`:a`) and after (`:z`)
-        # @param [Hash] rule Rule hash to evaluate
-        # @return [Hash] evaluated version of rule, containing code numbers
-        def evaluate(rule)
-            # error if not hash
-            return nil if !rule.is_a?(Hash)
-
-            before_part_key = Parts[:before]
-            after_part_key = Parts[:after]
-            
-            before_part = {}; after_part = {}
-
-            rule_keys = rule.keys.map{|k|k.to_sym}                
-            if !rule_keys.include?(before_part_key) && !rule_keys.include?(after_part_key)
-                before_part = rule
-            else
-                before_part = rule.fetch(before_part_key, {})
-                after_part = rule.fetch(after_part_key, {})
-            end
-
-            # Attempt to auto-generate 'after' rules if 'before' is given but
-            # no 'after' is. Auto includes resets for used bg/fg if used
-            # and disable for any enabled styles
-            if before_part.keys.length > 0 && after_part.keys.length == 0
-                resets = before_part.keys.filter{|k| ColorModes.keys.include?(k) }
-                disables = before_part.fetch(:enable, [])
-                
-                after_part[:reset] = resets if resets.length > 0
-                after_part[:disable] = disables if disables.length > 0
-            end
-
-            parts = {}
-
-            parts[before_part_key] = evaluate_ops(before_part)
-            parts[after_part_key] = evaluate_ops(after_part)
-
-            return parts
-
-        end
-        
+        # Value added to ColorTarget when using XTerm colors
+        XTERM_COLOR_TARGET = 8
         ##
-        # Return ANSI color codes from evaluated rule
-        # @param [Hash, Array] rule Full rule or part (Array)
-        # @return [Hash, String] If full rule given, Hash with code strings
-        #   for `:a` and `:z`, else code string for given array of codes
-        def codes(rule)
-            code = Proc.new {|c| "\e[#{c}m" }
-            if rule.is_a?(Hash)
-                {
-                    a: rule[:a].map{|c| code.call(c) }.join(''),
-                    z: rule[:z].map{|c| code.call(c) }.join('')
-                }
-            else
-                rule.map{|c| code.call(c) }.join('')
+        # Mode constant for XTerm 256 Colors
+        XTERM_COLOR_256 = 5
+        ##
+        # Mode constant for XTerm 16m Colors
+        XTERM_COLOR_16M = 2
+
+        ##
+        # Structure used to hold compiled rule
+        Compiled = Struct.new(:original, :evaluated, :rule) do
+            ##
+            # Get codes for part of compiled rule
+            def codes(part)
+                rule[part]
             end
+        end
+
+        ##
+        # Compile rule into frozen instance of `Compiled` struct
+        # @param [Hash] rule Rule hash
+        # @return [Compiled] Frozen instance of `Compiled` struct
+        #   containing compiled rule
+        def compile(rule)
+            evaluated = evaluate(rule)
+            return Compiled.new(
+                rule,
+                evaluated,
+                codes(evaluated)
+            ).freeze
         end
 
         private
@@ -178,8 +173,8 @@ module TermColor
         def evaluate_ops(ops)
             codes = []
             v_ops = ops.filter{|k,v| Ops.keys.include?(k.to_sym)}
-            color_keys = ColorModes.keys
-            style_keys = StyleModes.keys
+            color_keys = ColorTargets.keys
+            style_keys = StyleActions.keys
             reset_keys = Resets.keys
             v_ops.each_pair do |k,v|
                 k=k.to_sym
@@ -198,21 +193,27 @@ module TermColor
             codes = codes.flatten.compact.uniq
         end                
 
-        def resolve_color(color, mode = :fg)
+        def resolve_color(color, target = :fg)
+            if color.is_a?(Array)
+                color = color[0..2]
+                return xterm_color(color, target)
+            end
+                
             if !color.is_a?(Integer)
+                
                 if color.is_a?(Hash) && ColorsAdvanced.keys.include?(color.keys[0])
                     return self.method(ColorsAdvanced[color.keys[0]]).call(color.values[0])
                 end
                 color = Colors[color.to_sym].to_i
             end
-            (color + ColorModes[mode.to_sym].to_i)
+            (color + ColorTargets[target.to_sym].to_i)
         end
 
         def resolve_style(style, state = :enable)
             if !style.is_a?(Integer)
                 style = Styles[style.to_sym].to_i
             end
-            (style + StyleModes[state.to_sym].to_i)
+            (style + StyleActions[state.to_sym].to_i)
         end
 
         def resolve_reset(target)
@@ -225,14 +226,81 @@ module TermColor
             end
         end
 
-        def color_256(val)
-            "38;5;#{val}"
+        def xterm_color(val,target)
+            r,g,b = [val].flatten
+            if g.nil? && b.nil?
+                [
+                    ColorTargets[target] + XTERM_COLOR_TARGET,
+                    XTERM_COLOR_256,
+                    r
+                ].join(';')
+            else
+                [
+                    ColorTargets[target] + XTERM_COLOR_TARGET,
+                    XTERM_COLOR_16M,
+                    r,g,b
+                ].join(';')
+            end
         end
 
-        def color_16m(val)
-            c = val.join(';')
-            "38;2;#{c}"
-        end
+        ##
+        # Evaluate rule, returning new hash containing list of numerical
+        # codes to use for inside (`:inside`) and after (`:after`)
+        # @param [Hash] rule Rule hash to evaluate
+        # @return [Hash] evaluated version of rule, containing code numbers
+        def evaluate(rule)
+            # error if not hash
+            return nil if !rule.is_a?(Hash)
 
+            inside_part_key = Parts[:inside]
+            after_part_key = Parts[:after]
+            rule_keys = rule.keys.map{|k|k.to_sym}
+            
+            # Find 'inside' rule options
+            if rule_keys.include?(inside_part_key)
+                # 'inside' key explicitly defined, so pull from that
+                inside_part = rule[:inside]
+            else
+                # no 'inside' key, so pull from entire hash excluding
+                # 'after' key, if present
+                inside_part = rule.filter { |k,v| k != after_part_key }
+            end
+
+            # Find 'after' rule options, using nil if not present
+            # This means that if it is defined but as an empty hash,
+            # no 'after' rule options will be auto-generated
+            after_part = rule.fetch(after_part_key, nil)
+
+            # Auto-generate 'after' rule options if not explicitly defined
+            if after_part.nil?
+                resets = inside_part.keys.filter { |k| ColorTargets.keys.include?(k) }
+                disables = inside_part.fetch(:enable, [])
+                after_part = {}
+                after_part[:reset] = resets if resets.length > 0
+                after_part[:disable] = disables if disables.length > 0
+            end
+
+            parts = {}
+
+            parts[inside_part_key] = evaluate_ops(inside_part)
+            parts[after_part_key] = evaluate_ops(after_part)
+
+            return parts.merge({evaluated: true})
+
+        end
+        
+        ##
+        # Return ANSI color codes from evaluated rule
+        # @param [Hash] rule Full rule
+        # @return [Hash] Hash with code strings for `:inside` and `:after`
+        def codes(rule)
+            code = Proc.new {|c| "\e[#{c}m" }
+            inside = Parts[:inside]
+            after = Parts[:after]
+            {
+                (inside) => rule[inside].map{|c| code.call(c) }.join(''),
+                (after) => rule[after].map{|c| code.call(c) }.join('')
+            }
+        end
     end
 end

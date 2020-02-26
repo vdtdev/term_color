@@ -2,3 +2,6 @@
 'lib/**/*.rb'
 --protected
 --markup markdown
+-
+README
+./docs/rule_dsl.md
