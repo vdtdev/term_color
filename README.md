@@ -10,81 +10,93 @@ Rule-based text coloring/styling library for terminal text
     - Able to manually specify what gets reset after style use is finished in a line, which parts to reset, etc.
 - Streamline including multiple styles within a single string, including allowing nested rules
 
-### TODO
-- Publish as gem
-
 ### Requirements
 
 - Tested/developed for Ruby 2.6.1
 
-## Syntax
+## Concepts/Syntax
 
-### Defining Style Rule Sets
+Rules are grouped into `RuleSets`, which are represented by instances of {TermColor::RuleSet}.
 
-A rule set is a hash of rule names mapped to hashes containing rules.
+### Rule Set
 
+A set is constructed from a Hash of rule, where they keys are rule names and the values are the rule definition hashes.
+
+```ruby
+rules = {
+    # Rule named :title
+    title: { fg: :yellow, enable: :underline }
+}
+# Create instance of RuleSet
+rule_set = TermColor.create_rule_set(rules)
+# or
+rule_set = TermColor::RuleSet.new(rules)
 ```
-rules = TermColor.create_rule_set(rules_hash)
-```
 
-Each rule can either:
+#### Applying to Text
 
-- Directly contain rule property/value pairs
-- Contain rule property/value pairs within sub hashes with keys `a:` for rules to apply to text rule is used on and `z:` for rules to apply after application block closes (usually used for resetting colors/styling)
-    - If neither `a:` or `z:` are given, rule properties are assumed to be for `a:`
-    - If no `z:` is given, reset rules are automatically created to revert colors / styling enabled in `a:`
-        - e.g.: `{fg: :red, enable: :underline}` will make a `z:` resetting fg and disabling underline
+Once you've got a `RuleSet` instance, calling its `apply` or `print`/`printf` methods with a string parameter will give back a copy of that string with styles applied
 
+__Methods__
 
-#### Rule Properties
-
-- `fg` - Foreground color. Value can be a {TermColor::Rule::Colors} or an Integer or:
-    - `{c256: Integer}` for ANSI 256 color
-    - `{c16m: [red,green,blue]}` for ANSI 16m color
-- `bg` - Background color. Value can be a {TermColor::Rule::Colors} or an Integer
-    - `{c256: Integer}` for ANSI 256 color
-    - `{c16m: [red,green,blue]}` for ANSI 16m color
-- `enable` - Enable one or more styling options (({TermColor::Rule::Styles}))
-- `disable` - Disable one or more styling options (({TermColor::Rule::Styles}))
-- `reset` - Reset one or more properties. Can be `fg`, `bg` or `all` to reset everything
-
-### Using Rule Sets
-
-Calling `rule_set_instance.colorize()` on text will give back a string containing ANSI color codes.
-
-- To start applying a rule, include `%rulename` in the text passed to `colorize`. The style will continue to be applied until `%%` is encountered. 
-- When `%%` is encountered, if the rule has custom 'after' rules, those will take affect. (by default, style rules without custom 'after' rules will reset the colors/stylings they apply). If a rule was being applied prior to the application of the rule `%%` is closing, styling will revert back to that except for any overriding resets done by closing the inner style
-- Including `%%` when a style rule is not actively being applied will reset fg, bg and styling settings to default.
-
-## Examples
-
-### Example 1
-
-__Rules__
-
-```
-rules = TermColor.create_rule_set({
-    # Underlined text
-    title: { enable: :underline },
-    # Yellow foreground
-    name: { fg: :yellow },
-    # Green foreground, italic
-    prop: { fg: :green, enable: :italic }
-})
-```
+- `apply` - {TermColor::RuleSet#apply}
+- `print` - {TermColor::RuleSet#print}
+- `printf` - {TermColor::RuleSet#printf}
 
 __Use__
 
-```
-print rules.colorize("%titleHow to %propSucceed%%%% by %nameJohn%%\n")
+- To apply a style to a section of the input string, surround it with `%rule_name` and `%%`
+    - E.g.: `"%titleTitle Text%%"`
+    - `%%` indicates the end of rule application, after which any `after` rules will get applied
+    - Including `%%` when no rule is active will apply the `default` rule's `:after` options, which can either be overridden in your rule set, or make use of the built-in version which simply resets all colors and text styling to system default
+- Rule application can be nested (`"%titleTitle of %otherBook%%%%"`)
+
+### Rule Definitions
+
+Rule definitions are just hashes that include rule options. The included options can be divided into `:inside` (applied to text rule is applied to) and `:after` (applied to text following text rule is applied to). If neither of these sub hashes are included, all options are treated as being for `:inside`, and an `:after` set is auto-generated to unapply style changes made inside rule for following text. To prevent an `:after` section from being automatically generated, either include your own `:after` section or include `after: {}`. 
+
+```ruby
+# No groups, after will be generated
+rule = { fg: :red }
+# Same as above but with groups. after will be generated
+rule = { inside: { fg: :red } }
+# No groups, skip after generation by setting it to 
+# empty hash of options
+rule = { fg: :red, after: {} }
+# Both groups, same as others but with explicitly set after options,
+# no auto-generation
+rule = { inside: { fg: :red }, after: { reset: :fg } }
 ```
 
-__Result__
+For more details on rule definitions, see {file:docs/rule_dsl.md Rule DSL}
 
-- "How to" - underlined
-- "Succeed" - underlined + green + italic
-- "by" - regular text
-- "John" - yellow
+## Examples
+
+### Basic
+
+```ruby
+rule_set = TermColor.create_rule_set({
+    opt: { fg: :cyan },
+    err: { fg: :red }
+})
+
+rule_set.printf "%errInvalid%% option: %opt%s%%\n", "fruit"
+```
+
+<img src={file:docs/examples/example_1.png}>
+<img src="./docs/examples/example_1.png">
+
+### Nested /w XTerm RGB
+
+```ruby
+rule_set = TermColor.create_rule_set({
+    title: { fg: :yellow, enable: :underline },
+    emph: { fg: [0xa0,0xa0,0xff], enable: :italic },
+    author: { fg: :green, bg: :blue, enable: :bold }
+})
+
+rule_set.print "book: %%titleHarry Potter (%emph%%)%% by %authorJ. K. Rowling%%\n"
+```
 
 ## License
 

@@ -52,10 +52,10 @@ module TermColor
         end
 
         ##
-        # Colorize string using rule set
-        # @param [String] text Text to colorize
-        # @return [String] Text with ANSI color codes injected
-        def colorize(text)
+        # Apply styling to string using rule set
+        # @param [String] text Text to parse for stylization
+        # @return [String] Text with ANSI style codes injected
+        def apply(text)
             raw = process_text(text)
             last_rule = nil
             str = ''
@@ -88,6 +88,44 @@ module TermColor
             str
         end
 
+        ##
+        # Wraps STDOUT print method, passing output of `apply` to `print`
+        # @param [Array] args Print arguments, including TermColor style tags
+        # @param [Hash] opts Optional params
+        # @opt opts [IO] :out Optional override for IO class to call `print`
+        #   on (default `$stdout`)
+        def print(*args,**opts)
+            stdout = opts.fetch(:out, $stdout)
+            t = args.map{|a|apply(a)}
+            stdout.print *t
+        end
+
+        ##
+        # Wraps STDOUT printf method, passing output of `apply` to `print`
+        # Doesn't actually use `printf`, instead passes result of
+        # `format_string % args` to `print`.
+        # @param [String] format_string printf format string, 
+        #   including TermColor style tags
+        # @param [Array] args printf values to use with format string
+        # @param [Hash] opts Optional params
+        # @opt opts [IO] :out Optional override for IO class to call `print`
+        #   on (default `$stdout`)
+        def printf(format_string,*args,**opts)
+            stdout = opts.fetch(:out, $stdout)
+
+            # Sanitize rule symbols
+            sanitized = format_string.dup
+            @rules.keys.each { |k| sanitized.gsub!("#{RULE_SYMBOL}#{k.to_s}","#{255.chr}#{k.to_s}") }
+            sanitized.gsub!(RESET_SYMBOL, 255.chr*2)
+            
+            t = sanitized % args
+            # Reinstate rule symbols
+            @rules.keys.each { |k| t.gsub!("#{255.chr}#{k.to_s}","#{RULE_SYMBOL}#{k.to_s}") }
+            t.gsub!(255.chr*2,RESET_SYMBOL)
+            
+            stdout.print apply(t)
+        end
+            
         private
 
         def evaluate_rules
