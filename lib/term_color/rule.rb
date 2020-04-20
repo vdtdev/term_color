@@ -12,9 +12,9 @@ module TermColor
     #   # Insize: (`a:`) Foreground yellow, bg red, dark style on
     #   # After: Resets all color and style options to default,
     #   # including those set by other rules
-    #   rule = { 
+    #   rule = {
     #       a: {
-    #           fg: :yellow, bg: :red, enable: :dark 
+    #           fg: :yellow, bg: :red, enable: :dark
     #       },
     #       z: {
     #           reset: :all
@@ -45,23 +45,23 @@ module TermColor
                 ##
         # Numerical modifiers used with Color Values
         # to target foreground or background.
-        # 
+        #
         # - For {Colors Named Standard Colors}, value is added to given
         #   color's numerical value
         # - For XTerm 256/16m color codes, value is added to mode base
-        # 
+        #
         # @example Named Standard Color Background
         #   { bg: :red } #=> 40 + 1 = 41
         # @example XTerm 256 Foreground
         #   { fg: [208] } #=> 8 + 30 = 38
-        ColorTargets = { 
+        ColorTargets = {
             fg: 30, # Foreground target
             bg: 40  # Background target
         }.freeze
 
         ##
         # Style option constants
-        # (Values that can be included in style `enable` and `disable` 
+        # (Values that can be included in style `enable` and `disable`
         # rule option attributes)
         Styles = {
             bold: 1,
@@ -75,6 +75,7 @@ module TermColor
             italic: 3,
             underline: 4,
             inverse: 7,
+            hidden: 8,
             strikethrough: 9
         }.freeze
 
@@ -85,12 +86,12 @@ module TermColor
         # was used)
         # @example Disable italic
         #   (:disable) + (:italic) #=> 20 + 3 = 23
-        StyleActions = { 
+        StyleActions = {
             # Enable style(s) action
             enable: 0,
             # Disable style(s) action
-            disable: 20 
-        }
+            disable: 20
+        }.freeze
 
         ##
         # Reset option constants
@@ -101,8 +102,16 @@ module TermColor
             # Reset foreground color only
             fg: 39,
             # Reset background color only
-            bg: 49
+            bg: 49,
+            # Reset style
+            style: StyleActions[:disable]
         }.freeze
+
+        ##
+        # Operations associated with reset
+        ResetOps = [ :reset, :keep ].freeze
+
+        ResetsExtra = [ :style ].freeze
 
         ##
         # Descriptive aliases for part names
@@ -111,7 +120,7 @@ module TermColor
             inside: :inside,
             # Style appled when rule close is given
             after: :after
-        }
+        }.freeze
 
         ##
         # Valid rule operations mapped to accepted const values
@@ -126,13 +135,38 @@ module TermColor
             # Disable style(s) action
             disable: Styles.keys,
             # Reset action
-            reset: [
-                :fg,    # Reset fg color 
-                :bg,    # Reset bg color
-                :style, # Reset all styles
-                :all    # Reset colors and styles
-            ]
-        }
+            reset: Resets.keys,
+            # Keep action (opposite of reset)
+            keep: Resets.keys
+        }.freeze
+
+        ##
+        # Normalize rules for ops; either `:keep` to
+        # not change original value, or `:array` to
+        # wrap single value inside array
+        OpNormalize = {
+          fg: :keep,
+          bg: :keep,
+          enable: :array,
+          disable: :array,
+          reset: :array,
+          keep: :array
+        }.freeze
+
+        ##
+        # Allowed ops by part
+        PartOps = {
+          inside: [:fg, :bg, :enable, :disable],
+          after: [:fg, :bg, :enable, :disable, :reset, :keep]
+        }.freeze
+
+        ##
+        # Operations allowed within 'after'
+        AfterOps = (Ops.filter{|k,v| PartOps[:after].include?(k)}).freeze
+
+        ##
+        # Operations allowed within 'inside'
+        InsideOps = (Ops.filter {|k,v| PartOps[:inside].include?(k)}).freeze
 
         ##
         # Value added to ColorTarget when using XTerm colors
@@ -167,10 +201,13 @@ module TermColor
         ##
         # Compile rule into frozen instance of `Compiled` struct
         # @param [Hash] rule Rule hash
+        # @param [RuleSet] rs Rule set
+        # @param [Boolean] is_reset Set to true to indicate rule is for reset
+        #   operation, and should ignore default after resolution
         # @return [Compiled] Frozen instance of `Compiled` struct
         #   containing compiled rule
-        def compile(rule)
-            evaluated = evaluate(rule)
+        def compile(rule, rs, is_reset=false)
+            evaluated = evaluate(rule,rs,is_reset)
             return Compiled.new(
                 rule,
                 evaluated,
@@ -201,16 +238,16 @@ module TermColor
                 end
             end
             codes = codes.flatten.compact.uniq
-        end                
+        end
 
         def resolve_color(color, target = :fg)
             if color.is_a?(Array)
                 color = color[0..2]
                 return xterm_color(color, target)
             end
-                
+
             if !color.is_a?(Integer)
-                
+
                 if color.is_a?(Hash) && ColorsAdvanced.keys.include?(color.keys[0])
                     return self.method(ColorsAdvanced[color.keys[0]]).call(color.values[0])
                 end
@@ -223,7 +260,10 @@ module TermColor
             if !style.is_a?(Integer)
                 style = Styles[style.to_sym].to_i
             end
-            (style + StyleActions[state.to_sym].to_i)
+            s_code = (style + StyleActions[state.to_sym].to_i)
+            # adjust so bold and dim both get 22
+            s_code = [s_code, StyleActions[:disable] + 2].max if state == :disable
+            return s_code
         end
 
         def resolve_reset(target)
@@ -257,15 +297,16 @@ module TermColor
         # Evaluate rule, returning new hash containing list of numerical
         # codes to use for inside (`:inside`) and after (`:after`)
         # @param [Hash] rule Rule hash to evaluate
+        # @param [RuleSet] rs Rule set
         # @return [Hash] evaluated version of rule, containing code numbers
-        def evaluate(rule)
+        def evaluate(rule, rs, is_reset)
             # error if not hash
             return nil if !rule.is_a?(Hash)
 
             inside_part_key = Parts[:inside]
             after_part_key = Parts[:after]
             rule_keys = rule.keys.map{|k|k.to_sym}
-            
+
             # Find 'inside' rule options
             if rule_keys.include?(inside_part_key)
                 # 'inside' key explicitly defined, so pull from that
@@ -279,15 +320,15 @@ module TermColor
             # Find 'after' rule options, using nil if not present
             # This means that if it is defined but as an empty hash,
             # no 'after' rule options will be auto-generated
-            after_part = rule.fetch(after_part_key, nil)
+            after_part = rule.fetch(after_part_key, {})
 
-            # Auto-generate 'after' rule options if not explicitly defined
-            if after_part.nil?
-                resets = inside_part.keys.filter { |k| ColorTargets.keys.include?(k) }
-                disables = inside_part.fetch(:enable, [])
-                after_part = {}
-                after_part[:reset] = resets if resets.length > 0
-                after_part[:disable] = disables if disables.length > 0
+            # Resolve after, either from template mixed with any
+            # overrides or an automatically generated version mixed with
+            # overrides
+            if rs.default_after == :auto
+                after_part = build_auto_after(inside_part, after_part)
+            else
+                after_part = override_after(inside_part, after_part, rs.default_after)
             end
 
             parts = {}
@@ -296,9 +337,100 @@ module TermColor
             parts[after_part_key] = evaluate_ops(after_part)
 
             return parts.merge({evaluated: true})
+        end
 
+        def normalize_part(hash,part,clean=false)
+            h = hash.dup
+            PartOps[part].each do |o|
+                if OpNormalize[o] == :array
+                h[o] = [h.fetch(o,[])].flatten
+                else
+                h[o] = h.fetch(o,nil)
+                end
+            end
+            
+            if clean
+                h = h.filter {|k,v| (v.is_a?(Array))? v.length > 0 : !v.nil? }
+            end
+            
+            return h
         end
         
+        def override_after(inside, override, after)
+            c_ovr = normalize_part(override, :after)
+            c_aft = normalize_part(after, :after)
+            c_inside = normalize_part(inside, :inside)
+            
+            # change reset :all to specific resets
+            if c_aft[:reset].include?(:all)
+                c_aft[:reset] = Resets.keys - [:all]
+            end
+            # change keep :all to specific resets
+            if c_ovr[:keep].include?(:all)
+                c_ovr[:keep] = Resets.keys - [:all]
+            end
+            
+            c_aft[:reset] = (c_aft[:reset] + c_ovr[:reset]).uniq
+            # remove keeps from resets
+            c_aft[:reset] -= c_ovr[:keep]
+            
+            # clear disable if keep :style
+            if c_ovr[:keep].include?(:style) ||
+                c_aft[:disable] = []
+            end
+            
+            # if override disables styles, remove blanket style reset
+            if c_ovr[:disable].length >= 1
+                c_aft[:reset] -= [:style]
+            end
+
+            # replace reset :style with style specific targets
+            if c_inside[:enable].length > 0 && c_aft[:reset].include?(:style)
+                c_aft[:reset] -= [:style]
+                c_aft[:disable] += c_inside[:enable]
+                c_aft[:enable] -= c_inside[:enable]
+            end
+
+            # If we've reached this point with reset :style, change it into
+            # disables
+            if c_aft[:reset].include?(:style)
+                c_aft[:reset] -= [:style]
+                c_aft[:disable] += Styles.keys
+            end
+            
+            # prevent enables from conflicting with disables
+            en = (c_aft[:enable] + c_ovr[:enable] - c_ovr[:disable]).uniq
+            di = (c_aft[:disable] + c_ovr[:disable] - c_ovr[:enable]).uniq
+            
+            en -= di
+            di -= en
+            
+            result = { enable: en, disable: di, reset: c_aft[:reset] }
+            ColorTargets.keys.each do |k|
+                val = (c_ovr[k] || c_aft[k])
+                result[k] = val unless val.nil?
+            end
+            
+            return normalize_part(result, :after, true)
+        end
+        
+        def build_auto_after(inside, after={})
+            c_inside = normalize_part(inside, :inside)
+            n_after = normalize_part({}, :after)
+            
+            if c_inside[:enable].length > 0
+                n_after[:reset] += [:style]
+            end
+            
+            ColorTargets.keys.each do |k|
+                if !c_inside[k].nil?
+                    n_after[:reset] += [k]
+                end
+            end
+
+            override_after(inside, after, n_after)
+        end
+
         ##
         # Return ANSI color codes from evaluated rule
         # @param [Hash] rule Full rule

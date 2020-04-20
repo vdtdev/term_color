@@ -9,8 +9,10 @@ module TermColor
     ##
     # Alias for constructing a new RuleSet
     # @see TermColor::RuleSet
-    def create_rule_set(rules={})
-        TermColor::RuleSet.new(rules)
+    def create_rule_set(rules=nil,**opts)
+      TermColor::RuleSet.new(rules,opts)
     end
+
+
 
 end

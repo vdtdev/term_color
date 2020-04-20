@@ -1,8 +1,9 @@
-version = '0.0.2'
+require 'date'
+version = File.read('./.version').strip
 Gem::Specification.new do |s|
     s.name          = 'term_color'
     s.version       =  version
-    s.date          = '2020-02-26'
+    s.date          = (Time.now.strftime('%Y-%m-%d'))
     s.summary       = "Terminal Colors"
     s.description   = <<-eof 
         Rule-based tool for easily applying color and styling to terminal text output.
