@@ -260,7 +260,10 @@ module TermColor
             if !style.is_a?(Integer)
                 style = Styles[style.to_sym].to_i
             end
-            (style + StyleActions[state.to_sym].to_i)
+            s_code = (style + StyleActions[state.to_sym].to_i)
+            # adjust so bold and dim both get 22
+            s_code = [s_code, StyleActions[:disable] + 2].max if state == :disable
+            return s_code
         end
 
         def resolve_reset(target)
@@ -325,7 +328,7 @@ module TermColor
             if rs.default_after == :auto
                 after_part = build_auto_after(inside_part, after_part)
             else
-                after_part = override_after(after_part, rs.default_after)
+                after_part = override_after(inside_part, after_part, rs.default_after)
             end
 
             parts = {}
@@ -339,80 +342,94 @@ module TermColor
         def normalize_part(hash,part,clean=false)
             h = hash.dup
             PartOps[part].each do |o|
-              if OpNormalize[o] == :array
+                if OpNormalize[o] == :array
                 h[o] = [h.fetch(o,[])].flatten
-              else
+                else
                 h[o] = h.fetch(o,nil)
-              end
+                end
             end
-          
+            
             if clean
-              h = h.filter {|k,v| (v.is_a?(Array))? v.length > 0 : !v.nil? }
+                h = h.filter {|k,v| (v.is_a?(Array))? v.length > 0 : !v.nil? }
             end
-          
+            
             return h
-          end
-          
-          def override_after(override, after)
+        end
+        
+        def override_after(inside, override, after)
             c_ovr = normalize_part(override, :after)
             c_aft = normalize_part(after, :after)
-          
+            c_inside = normalize_part(inside, :inside)
+            
             # change reset :all to specific resets
             if c_aft[:reset].include?(:all)
-              c_aft[:reset] = Resets.keys - [:all]
+                c_aft[:reset] = Resets.keys - [:all]
             end
             # change keep :all to specific resets
             if c_ovr[:keep].include?(:all)
-              c_ovr[:keep] = Resets.keys - [:all]
+                c_ovr[:keep] = Resets.keys - [:all]
             end
-          
+            
             c_aft[:reset] = (c_aft[:reset] + c_ovr[:reset]).uniq
             # remove keeps from resets
             c_aft[:reset] -= c_ovr[:keep]
-          
+            
             # clear disable if keep :style
             if c_ovr[:keep].include?(:style) ||
-              c_aft[:disable] = []
+                c_aft[:disable] = []
             end
-          
+            
             # if override disables styles, remove blanket style reset
             if c_ovr[:disable].length >= 1
-              c_aft[:reset] -= [:style]
+                c_aft[:reset] -= [:style]
             end
-          
+
+            # replace reset :style with style specific targets
+            if c_inside[:enable].length > 0 && c_aft[:reset].include?(:style)
+                c_aft[:reset] -= [:style]
+                c_aft[:disable] += c_inside[:enable]
+                c_aft[:enable] -= c_inside[:enable]
+            end
+
+            # If we've reached this point with reset :style, change it into
+            # disables
+            if c_aft[:reset].include?(:style)
+                c_aft[:reset] -= [:style]
+                c_aft[:disable] += Styles.keys
+            end
+            
             # prevent enables from conflicting with disables
-            en = (c_aft[:enable] + c_ovr[:enable] - c_ovr[:disable])
-            di = (c_aft[:disable] + c_ovr[:disable] - c_ovr[:enable])
-          
+            en = (c_aft[:enable] + c_ovr[:enable] - c_ovr[:disable]).uniq
+            di = (c_aft[:disable] + c_ovr[:disable] - c_ovr[:enable]).uniq
+            
             en -= di
             di -= en
-          
+            
             result = { enable: en, disable: di, reset: c_aft[:reset] }
             ColorTargets.keys.each do |k|
-              val = (c_ovr[k] || c_aft[k])
-              result[k] = val unless val.nil?
+                val = (c_ovr[k] || c_aft[k])
+                result[k] = val unless val.nil?
             end
-          
+            
             return normalize_part(result, :after, true)
-          
-          end
-          
-          def build_auto_after(inside, after={})
+        end
+        
+        def build_auto_after(inside, after={})
             c_inside = normalize_part(inside, :inside)
             n_after = normalize_part({}, :after)
-          
+            
             if c_inside[:enable].length > 0
-              n_after[:reset] += [:style]
+                n_after[:reset] += [:style]
             end
-          
+            
             ColorTargets.keys.each do |k|
-              if !c_inside[k].nil?
-                n_after[:reset] += [k]
-              end
+                if !c_inside[k].nil?
+                    n_after[:reset] += [k]
+                end
             end
-          
-            override_after(after, n_after)
-          end
+
+            override_after(inside, after, n_after)
+        end
 
         ##
         # Return ANSI color codes from evaluated rule

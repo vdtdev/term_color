@@ -5,17 +5,7 @@ module TermColor
     # @license MIT
     class RuleSet
 
-        DBG = true
-
-        ##
-        # Symbol used as prefix for rule name to denote rule start
-        RULE_OPEN_SYMBOL='{%'
-        ##
-        # String used to denote rule close
-        RULE_CLOSE_SYMBOL='%}'
-        ##
-        # String used to denote rule reset
-        RESET_SYMBOL='{%}'
+        DBG = false
 
         ##
         # Default rule symbols
@@ -23,13 +13,20 @@ module TermColor
           open: '{%',
           close: '%}',
           reset: '%@'
-        }
+        }.freeze
 
-        DEFAULT_RESET_RULE = {after: {reset: :all} }
+        ##
+        # Default reset rule
+        DEFAULT_RESET_RULE = {after: {reset: :all} }.freeze
 
+        ##
+        # After preset options
         AFTER_PRESETS = {
+          # Full reset
           reset: {reset: :all},
+          # Automatically determine what to toggle off
           auto: :auto,
+          # No reset
           keep: {keep: :all}
         }
 
@@ -37,6 +34,8 @@ module TermColor
         # Struct for rule and reset symbols
         SymbolOptions = Struct.new(:open,:close,:reset)
 
+        ##
+        # Default after preset choice
         DEFAULT_AFTER = :auto
 
         attr_reader :rules, :regexs, :default_after, :symbols
@@ -44,10 +43,10 @@ module TermColor
         ##
         # Construct new rule set
         # @param [Hash] rules Hash of rule names mapping to rule hashes,
-        #   which can define before rules (`a:`), after rules (`z:`) or both.
-        #   - If neither are given, content is treated as though it was inside a `a:` key.
-        #   - If `a:` only is given, {TermColor::Rule#evaluate Rule evaluate method} attempts to
-        #       auto guess `z:`, resetting any used color or style rules from `a:`
+        #   which can define before rules (`inside:`), after rules (`after:`) or both.
+        #   - If neither are given, content is treated as though it was inside a `inside:` key.
+        #   - If `inside:` only is given, {TermColor::Rule#evaluate Rule evaluate method} attempts to
+        #       auto guess `after:`, resetting any used color or style rules from `inside:`
         # @param [Hash] opts Optional arguments
         # @option opts [Hash|Symbol] :after Override default `:after` rule behavior when rule has no `after:`
         #   Options:
@@ -55,6 +54,11 @@ module TermColor
         #   - `:auto` (default) - Try to automatically determine what to reset based on applied colors/styles
         #   - `:keep` - Keel all rule styles intact
         #   - (`Hash`) - Custom rule (formatted as Rule `after` prop, e.g. `{ reset: :fg, keep: :style }`)
+        # @option opts [Hash] :symbols Override styling symbols
+        #   Options:
+        #   - `:open` - Rule open symbol (used as symbolRulename) (default `{%`)
+        #   - `:close` - Rule close symbol (default `%}`)
+        #   - `:reset` - Symbol that can be used between rule blocks to fully reset everything (default `%@`)
         # @see TermColor::Rule
         # @example
         #   rules = RuleSet.new({
@@ -65,10 +69,10 @@ module TermColor
         #       quote: { enable: :italic },
         #       # A weird rule that will make fg red inside rule,
         #       # and change fg to blue after rule block ends
-        #       weird: { a: { fg: :red }, z: { fg: :blue }}
+        #       weird: { inside: { fg: :red }, after: { fg: :blue }}
         #   })
         #
-        #   print rules.colorize("%nameJohn%%: '%%quoteRoses are %%weirdRed%% (blue)%%.\n")
+        #   print rules.colorize("{%nameJohn%}: '{%quoteRoses are {%weirdRed%} (blue)%}.\n")
         #   # Result will be:
         #   #   fg green+underline "John"
         #   #   regular ":  "
@@ -105,6 +109,7 @@ module TermColor
             raw = process_text(text)
             rule_stack = []
             str = ''
+            rule_names = @rules.keys
             raw.each do |r|
               if r.is_a?(Symbol)
                 # Part is a rule
@@ -118,19 +123,28 @@ module TermColor
                   dprint 4,"After: #{opened_after.inspect}\n"
                   str.concat(opened_after)
                   unless rule_stack.length == 0
-                    outer = rule_stack[-1]
-                    outer_inside = @rules[outer].codes(Rule::Parts[:inside])
-                    # Closed rule was nested in another open rule
-                    dprint 3, "Outer rule '#{outer}' still open. Restoring Inside\n"
-                    dprint 4, "Inside: #{outer_inside.inspect}\n}"
-                    str.concat(outer_inside)
-                    # binding.pry
+                    rule_stack.each do |outer|
+                      outer_inside = @rules[outer].codes(Rule::Parts[:inside])
+                      # Closed rule was nested in another open rule
+                      dprint 3, "Outer rule '#{outer}' still open. Restoring Inside\n"
+                      dprint 4, "Inside: #{outer_inside.inspect}\n}"
+                      str.concat(outer_inside)
+                    end
                   end
+                    # binding.pry
+                    # outer = rule_stack[-1]
+                    # outer_inside = @rules[outer].codes(Rule::Parts[:inside])
+                    # # Closed rule was nested in another open rule
+                    # dprint 3, "Outer rule '#{outer}' still open. Restoring Inside\n"
+                    # dprint 4, "Inside: #{outer_inside.inspect}\n}"
+                    # str.concat(outer_inside)
+                    # # binding.pry
+                  # end
                 elsif r == :reset && rule_stack.length == 0
                   # no opened outer rules, reset symbol given
                   dprint "\t\tReset, no opened rule\n"
                   str.concat(@rules[r].codes(Rule::Parts[:after]))
-                else
+                elsif rule_names.include?(r)
                   # New rule to apply
                   dprint "\t\tApplying new rule '#{r}'\n"
                   dprint 3, "Previous active rule `#{rule_stack[-1]}`\n"
