@@ -80,7 +80,7 @@ module TermColor
         #   #   fg red (still italic) "Red"
         #   #   (fg blue)(still italic) "(blue)"
         #   #   (regular) "."
-        def initialize(rules={}, **opts)
+        def initialize(rules=nil, **opts)
             if rules.nil?
               rules = opts
               opts = {}

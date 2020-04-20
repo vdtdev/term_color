@@ -2,6 +2,7 @@ rule_ref = TermColor::Rule
 
 RSpec.describe "TermColor::Rule" do
     before(:all) do
+        @rs = TermColor::RuleSet.new({})
         @colors = rule_ref::Colors
         @targets = rule_ref::ColorTargets
         @styles = rule_ref::Styles
@@ -15,7 +16,7 @@ RSpec.describe "TermColor::Rule" do
             context "evaulated property" do
                 before(:each) do
                     @rule = { fg: :red, bg: :blue, enable: [:italic, :dim] }
-                    @compiled = TermColor::Rule.compile(@rule)
+                    @compiled = TermColor::Rule.compile(@rule,@rs)
                 end
                 it "has :inside" do
                     expect(@compiled.evaluated[:inside]).not_to be_nil
@@ -37,7 +38,7 @@ RSpec.describe "TermColor::Rule" do
                 context "with XTerm 256 colors" do
                     before(:each) do
                         @rule2 = @rule.merge({ fg: [208], bg: [209] })
-                        @comp2 = TermColor::Rule.compile(@rule2)
+                        @comp2 = TermColor::Rule.compile(@rule2,@rs)
                     end
                     it "applies fg" do
                         expect(@comp2.evaluated[:inside]).to include(
@@ -62,7 +63,7 @@ RSpec.describe "TermColor::Rule" do
                 context "with XTerm 16m colors" do
                     before(:each) do
                         @rule2 = @rule.merge({ fg: [30,80,128], bg: [30,80,128] })
-                        @comp2 = TermColor::Rule.compile(@rule2)
+                        @comp2 = TermColor::Rule.compile(@rule2, @rs)
                     end
                     it "applies fg" do
                         expect(@comp2.evaluated[:inside]).to include(
@@ -108,7 +109,7 @@ RSpec.describe "TermColor::Rule" do
                         fg: :red, bg: [128,64,0],
                         enable: :italic
                     }
-                    @compiled = TermColor::Rule::compile(@rule)
+                    @compiled = TermColor::Rule::compile(@rule, @rs)
                 end
                 it "includes expected :inside codes" do
                     codes = @compiled.codes(:inside)

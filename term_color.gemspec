@@ -15,6 +15,7 @@ Gem::Specification.new do |s|
         "lib/term_color/rule.rb",
         "lib/term_color/rule_set.rb",
     ]
+    s.required_ruby_version = '>= 2.6.1'
     s.files           << 'README.md'
     s.license       = 'MIT'
     s.homepage      = "https://github.com/vdtdev/term_color"
