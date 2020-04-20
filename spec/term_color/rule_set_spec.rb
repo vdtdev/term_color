@@ -21,7 +21,7 @@ RSpec.describe "TermColor::RuleSet" do
         end
         it "builds hash of compiled rules including all keys" do
             set = TermColor::RuleSet.new(@rules)
-            expect(set.rules.keys).to match_array(@rules.keys)
+            expect(set.rules.keys).to match_array(([@rules.keys] + [:reset]).flatten)
         end
     end
 
