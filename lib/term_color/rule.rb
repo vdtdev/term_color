@@ -39,10 +39,18 @@ module TermColor
             blue: 4,
             magenta: 5,
             cyan: 6,
-            white: 7
+            white: 7,
+            bright_black: 60,
+            bright_red: 61,
+            bright_green: 62,
+            bright_yellow: 63,
+            bright_blue: 64,
+            bright_magenta: 65,
+            bright_cyan: 66,
+            bright_white: 67
         }.freeze
 
-                ##
+        ##
         # Numerical modifiers used with Color Values
         # to target foreground or background.
         #
@@ -240,6 +248,30 @@ module TermColor
             codes = codes.flatten.compact.uniq
         end
 
+        ##
+        # Resolve named color, allowing fg target colors
+        # to use names prefixed with `light_` (e.g. `:light_blue`)
+        # def resolve_named_color(color, target = :fg)
+        #     sym = color.to_sym
+        #     unless target == :fg
+        #         # strip out any light_ prefix if not targetting :fg
+        #         sym = (sym.to_s.gsub('light_','')).to_sym
+        #     end
+        #     if Colors.has_key?(sym)
+        #         # Name found, return value + fg target 
+        #         return [Colors[sym].to_i]
+        #     end
+        #     pre,name = sym.to_s.split("_")
+        #     if pre == 'light' && !name.nil? && Colors.has_key?(name.to_sym)
+        #         # Named color with 'light_' prefix
+        #         # Return color code along with Proc to format with "1;val"
+        #         return [Colors[name.to_sym].to_i, Proc.new {|c| "1;#{c}" }]
+        #     end
+            
+        #     # Give back 0 if not resolved
+        #     return 0
+        # end
+
         def resolve_color(color, target = :fg)
             if color.is_a?(Array)
                 color = color[0..2]
@@ -253,7 +285,7 @@ module TermColor
                 end
                 color = Colors[color.to_sym].to_i
             end
-            (color + ColorTargets[target.to_sym].to_i)
+            color + ColorTargets[target.to_sym].to_i
         end
 
         def resolve_style(style, state = :enable)
@@ -339,6 +371,15 @@ module TermColor
             return parts.merge({evaluated: true})
         end
 
+        ##
+        # Normalize a rule's part, making sure all possible keys
+        # exist with at least `nil` values, and values that can be arrays
+        # are at least empty arrays, or arrays containing singular value
+        # @param [Hash] hash Input part to normalize
+        # @param [Symbol] part Which part to normalize {TermColor::Rule::PartOps}
+        # @param [Boolean] clean If true, strip out all values that are nil
+        #   or empty arrays (default `false`)
+        # @return [Hash] Copy of input hash after normalization is applied
         def normalize_part(hash,part,clean=false)
             h = hash.dup
             PartOps[part].each do |o|
@@ -356,6 +397,17 @@ module TermColor
             return h
         end
         
+        ##
+        # Combine an 'override' version of a rule's after part with a
+        # default 'after' part, resulting in the original default 'after' part
+        # with any adjustments needed to apply rules from override
+        # @param [Hash] inside 'Inside' part of rule, used to expand
+        #   `reset: :style` into specific `disable`
+        # @param [Hash] override Override version of after to apply to given
+        #   default
+        # @param [Hash] after Default 'after' part to be overridden
+        # @return [Hash] Overridden version of after rules
+        # @see normalize_part
         def override_after(inside, override, after)
             c_ovr = normalize_part(override, :after)
             c_aft = normalize_part(after, :after)
@@ -414,9 +466,18 @@ module TermColor
             return normalize_part(result, :after, true)
         end
         
+        ##
+        # Build after rule automatically based on inside portion of
+        # rule, treating given existing explict 'after' rules as overrides
+        # @param [Hash] inside Inside portion of rule to generate after for
+        # @param [Hash] after Explicitly defined after section of source rule,
+        #   combined with result by treating as overrides
+        # @return [Hash] Generated 'after' rules
         def build_auto_after(inside, after={})
             c_inside = normalize_part(inside, :inside)
-            n_after = normalize_part({}, :after)
+            # n_after = normalize_part({}, :after)
+            # TODO: Test to make sure the below fixed line doesn't break stuff :)
+            n_after = normalize_part(after, :after)
             
             if c_inside[:enable].length > 0
                 n_after[:reset] += [:style]
@@ -428,7 +489,8 @@ module TermColor
                 end
             end
 
-            override_after(inside, after, n_after)
+            # Combine override after section
+            rules = override_after(inside, after, n_after)
         end
 
         ##
