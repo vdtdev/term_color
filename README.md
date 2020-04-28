@@ -93,37 +93,71 @@ r = { fg: :red, bg: :blue }
 r = { after: { reset: :all}  }
 ```
 
-### Rule Options/Actions
+## Rule Parts/Actions
 
-#### Colors
+Option parts / actions available to rule definitions.
 
-##### Attributes
+### Colors
+
+#### Attributes
 
 - `fg` - Change foreground color
 - `bg` - Change background color
 
-##### Values
+#### Values
 
-###### Standard Named Colors
+_If images don't show up, try viewing on [Github](https://github.com/vdtdev/term_color/blob/master/README.md)_
 
-Color values can be color-name symbols as defined in {TermColor::Rule::Colors} (`:black, :red, :yellow, :blue, :magenta, :cyan, :white`)
+##### Standard Named Colors
 
-###### XTerm 256 Color Values
+Color values can be color-name symbols as defined in {TermColor::Rule::Colors Rule::Colors} (`:black, :red, :yellow, :blue, :magenta, :cyan, :white, :bright_black, :bright_red, :bright_yellow, :bright_blue, :bright_magenta, :bright_cyan, :bright_white`)
+
+```ruby
+rs = TermColor.create_rule_set({
+    named: { fg: :yellow, bg: :blue }
+})
+rs.print "Before {%namedHello!%}\n"
+```
+
+![](./docs/colors_named.png)
+![](./file/docs/colors_named.png)
+
+##### XTerm 256 Color Values
 
 To use XTerm 256 Color Mode values, include the color code integer inside a single item array. (E.g. for code `208`, use `[208]`)
 
-###### XTerm 16m Color Values
+```ruby
+rs = TermColor.create_rule_set({
+    x256: { fg: [226], bg: [56] }
+})
+rs.print "Before {%x256Hello!%}\n"
+```
+
+![](./docs/colors_256.png)
+![](./file/docs/colors_256.png)
+
+##### XTerm 16m Color Values
 
 To use XTerm 16m Color Mode RGB colors, include the red, green and blue color values in an ordered array (E.g. for 80 red, 80 green, 255 blue, use `[80,80,255]`)
 
-#### Styles
+```ruby
+rs = TermColor.create_rule_set({
+    x16: { fg: [255,250,11], bg: [15,15,200] }
+})
+rs.print "Before {%x16Hello!%}\n"
+```
 
-##### Actions
+![](./docs/colors_16m.png)
+![](./file/docs/colors_16m.png)
+
+### Styles
+
+#### Actions
 
 - `enable` - Style(s) to enable (Can be single item or array)
 - `disable` - Style(s) to disable (Can be single item or array)
 
-##### Values
+#### Values
 
 (See symbols in {TermColor::Rule::Styles})
 
@@ -135,7 +169,7 @@ To use XTerm 16m Color Mode RGB colors, include the red, green and blue color va
 - `:hidden`
 - `:strikethrough`
 
-#### Reset / Keep
+### Reset / Keep
 
 _(Only valid in `after` section)_
 
@@ -153,8 +187,6 @@ Quick way of resetting one or more style rules. `reset`/`keep` can be given a si
 - `:fg` / `:bg` - Reset foreground / background color
 - `:style` - Reset all styling
 - `:all` - Reset all colors and styling
-
-[If example images are missing, view readme on github](https://github.com/vdtdev/term_color/blob/master/README.md)
 
 ## Examples
 

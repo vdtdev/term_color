@@ -4,5 +4,4 @@
 --markup markdown
 --asset ./docs
 -
-README
-./docs/rule_dsl.md
+README.md
