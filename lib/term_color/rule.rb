@@ -102,6 +102,14 @@ module TermColor
         }.freeze
 
         ##
+        # When calculating the code for resetting a text style
+        # (by adding style code to {StyleActions[:disable]}),
+        # force style code value to be `>=` to this constant.
+        # (makes sure disabling `bold`/`intense` works by using
+        # same style code as used for `dim` in disable action calculation)
+        StyleDisableMinimumCode = 2.freeze
+
+        ##
         # Reset option constants
         # (Values for `reset` rule option attribute)
         Resets = {
@@ -293,8 +301,14 @@ module TermColor
                 style = Styles[style.to_sym].to_i
             end
             s_code = (style + StyleActions[state.to_sym].to_i)
-            # adjust so bold and dim both get 22
-            s_code = [s_code, StyleActions[:disable] + 2].max if state == :disable
+            # Make sure code is >= style disable code + minimum disable code
+            # (see StyleDisableMinimumCode)
+            if state == :disable
+                s_code = [
+                    s_code,
+                    StyleActions[:disable] + StyleDisableMinimumCode
+                ].max
+            end
             return s_code
         end
 

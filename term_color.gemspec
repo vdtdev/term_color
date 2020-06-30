@@ -1,5 +1,7 @@
 require 'date'
-version = File.read('./.version').strip
+require './lib/term_color.rb'
+version = TermColor::VERSION
+# version = File.read('./.version').strip
 Gem::Specification.new do |s|
     s.name          = 'term_color'
     s.version       =  version
